@@ -37,7 +37,8 @@ file : TemperatureScenario.java
 2. enter directory with ```cd Problem2```
 3. compile with  ```javac TemperatureScenario.java```
 4. run with ```java TemperatureScenario```
+Note: this also has several execution configuration options. Use the command line prompts or change config at top of file. By default the simulation is sped up by 60 so it will take a minute instead of an hour.
 
 
 ### Discussion / Implementation
-The logical solution was to have the master thread dispatch threads, then wait for the set time interval (1 minute) before dispatching again. It does this until 60 iterations (1 hour) have been passed in which it generates the report. 
+The logical solution was to have the master thread dispatch threads, then wait for the set time interval (1 minute) before dispatching again. It does this until 60 iterations (1 hour) have been passed in which it generates the report. A readings table was created using a java-synchronized arraylist of arraylists of integers. Each sensor writes to its own list and the table is read and cleared during the report writing.
