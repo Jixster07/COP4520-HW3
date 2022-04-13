@@ -6,7 +6,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class PresentScenario{
     
-    public final int numPresents = 1_000;
+    public final int numPresents = 500_000;
     public final int numServants = 4;
     public final Integer maxId = Integer.MAX_VALUE;
 
@@ -14,23 +14,36 @@ public class PresentScenario{
     ArrayList<Servant> servants;
     Bag bag;
     PresentChain presentChain;
+    Stack<Integer> thankYouNotes;
 
     public static void main(String[] args){
         PresentScenario ps = new PresentScenario();
     }
     PresentScenario(){
+        long startTime = System.nanoTime();
         this.presentChain = new PresentChain();
         this.bag = new Bag(numPresents);
         this.stopFlag = new AtomicBoolean(false);
+        this.thankYouNotes = new Stack<>();
 
         servants = new ArrayList<>();
         for (int i = 1; i <= numServants; i++){
             Servant s = new Servant(i);
             servants.add(s);
-            System.out.println("Master starting servant " + i);
-            //s.setDaemon(true);
             s.start();
+            try {
+                s.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        long endtime = System.nanoTime();
+
+
+        System.out.println("Servants finished their tasks...");
+        System.out.println("Size of thank you note stack: " + thankYouNotes.size());
+        System.out.println("Presents left on chain: " + presentChain.length.get());
+        System.out.println("Total execution time " + (endtime-startTime)/1_000_000_000.0 + " seconds");
     }
 
     int getRandomID(){
@@ -59,9 +72,6 @@ public class PresentScenario{
                     curr = curr.next;
                 }
                 pred.lock();
-                if (head == null){
-
-                }
 
                 try {
                     curr.lock();
@@ -72,26 +82,26 @@ public class PresentScenario{
                                 pred.next = p;
 
                                 this.length.incrementAndGet();
-                                System.out.println("Added present " + p.id + " new length " + this.length.get());
                                 
                                 return;
                             }
                         }
-                    } finally { // always unlock
+                    } finally {
                         curr.unlock();
                     }
-                } finally { // always unlock
+                } finally {
                     pred.unlock();
                 }
             }
 	    }
 
-        public boolean remove(Present p) {
+        public Present remove(Present p) {
 
             while (true) {
                 Present pred = this.head;
                 Present curr = head.next;
                 while (curr.id < p.id) {
+                    
                     pred = curr;
                     curr = curr.next;
                 }
@@ -100,21 +110,20 @@ public class PresentScenario{
                     curr.lock();
                     try {
                         if (validate(pred, curr)) {
-                            if (curr.id != p.id) { // present
-                                return false;
+                            if (curr.id != p.id) {
+                                return null;
                             } else { // absent
                                 curr.marked = true; // logically remove
                                 pred.next = curr.next; // physically remove
                                 this.length.getAndDecrement();
-                                System.out.println("Removed present " + p.id + " new length " + this.length.get());
 
-                                return true;
+                                return curr;
                             }
                         }
-                    } finally { // always unlock curr
+                    } finally {
                         curr.unlock();
                     }
-                } finally { // always unlock pred
+                } finally {
                     pred.unlock();
                 }
             }
@@ -139,7 +148,6 @@ public class PresentScenario{
     public class Present implements Comparable<Present>{
 
         public volatile Present next;
-        public volatile Present prev;
         // marked presents are deleted logically
         public volatile boolean marked;
         public volatile boolean tagged;
@@ -150,7 +158,6 @@ public class PresentScenario{
         Present(Integer id){
             this.id = id;
             this.next = null;
-            this.prev = null;
             this.marked = false;
             this.lock = new ReentrantLock();
 
@@ -205,38 +212,40 @@ public class PresentScenario{
         private boolean switchFlag = true;
         Servant(int id){
             this.id = id;
+            this.switchFlag = true;
         }
 
         @Override
         public void run() {
             Random rand = new Random();
             while(stopFlag.get() == false){
-                //System.out.println("Worker " + this.id + " starting new task");
+                
                 // random chance for minotaur to ask servant
                 if (rand.nextInt(100) == 0){
                     presentChain.contains(getRandomID());
                 }
                 else{
-                    // take from bag, add to chain
                     boolean bagEmpty = bag.size.get() <= 0;
                     if (bagEmpty){
-                        if (presentChain.length.get() > 0){
-                            presentChain.remove(presentChain.head.next);
+                        if (presentChain.length.get() > 0){ 
+                            Present p = presentChain.remove(presentChain.head.next);
+                            thankYouNotes.add(p.id);
+                        }else{
+                            stopFlag.set(true);
                         }
                     }
                     else if (switchFlag){
-                        System.out.println("Worker " + this.id + " taking from bag");
                         // take from chain, write note
                         Present p = bag.take();
-                        System.out.println("Worker " + this.id + " adding present to chain");
 
                         presentChain.add(p);
                         switchFlag = !switchFlag;
 
                     }else if (!switchFlag){
-                        System.out.println("Worker " + this.id + " removing from chain");
+                        //System.out.println("Worker " + this.id + " removing from chain");
 
-                        presentChain.remove(presentChain.head.next);
+                        Present p = presentChain.remove(presentChain.head.next);
+                        thankYouNotes.add(p.id);
 
                         switchFlag = !switchFlag;
 

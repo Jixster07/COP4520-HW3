@@ -13,7 +13,7 @@ public class TemperatureScenario {
     final int reportInterval = 60*60 / speedUpFactor;   // time (in seconds) between each report
     ArrayList<Sensor> sensors;
     //Reading table has all readings for hour for all threads
-    ArrayList<ArrayList<Integer>> readingTable;
+    List<ArrayList<Integer>> readingTable;
 
 
     public static void main(String[] args){
@@ -51,7 +51,9 @@ public class TemperatureScenario {
         System.out.println("Starting Temperature Simulation");
         System.out.println("Simulation sped up by a factor of " + speedUpFactor);
         
-        readingTable = new ArrayList<ArrayList<Integer>>(numThreads);
+        //readingTable = new ArrayList<ArrayList<Integer>>(numThreads);
+        readingTable = Collections.synchronizedList(new ArrayList<ArrayList<Integer>>(numThreads));
+
         sensors = new ArrayList<>();
         for (int i = 0; i < numThreads; i++){
             sensors.add(new Sensor(i));
