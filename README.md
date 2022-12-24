@@ -4,7 +4,7 @@
 file : PresentScenario.java
 
 ### How to run
-1. clone this repo ```git clone https://github.com/Jixster07/COP4520-HW3.git```
+1. clone this repo ```git clone https://github.com/nthiemann/COP4520-HW3.git```
 2. enter directory with ```cd Problem1```
 3. compile with  ```javac PresentScenario.java```
 4. run with ```java PresentScenario```<br>
